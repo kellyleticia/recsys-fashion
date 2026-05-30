@@ -86,13 +86,12 @@ Isso dá embeddings mais precisos do que indexar só o título.
 
 ## Como rodar localmente
 
-### 1. Clone e crie o ambiente
+### 1. Clone e sincronize as dependências
+
 ```bash
 git clone https://github.com/kellyleticia/recsys-fashion
 cd recsys-fashion
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+uv sync
 ```
 
 ### 2. Dataset
@@ -161,7 +160,6 @@ recsys-fashion/
 ├── gerar_embeddings.py
 ├── preparar_dados.py
 ├── pyproject.toml
-├── requirements.txt
 ├── uv.lock
 └── README.md
 ```
