@@ -1,0 +1,18 @@
+# Arquivos grandes — rode os scripts para recriar
+data/embeddings.npy
+data/index.faiss
+
+# Banco local
+data/recsys.db
+
+# Imagens originais do dataset (25GB)
+data/images/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+.ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/
