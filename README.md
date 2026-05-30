@@ -4,9 +4,9 @@
 > Projeto de portfólio 
 
 ![Python](https://img.shields.io/badge/Python-3.9+-blue)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.111-green)
-![sentence-transformers](https://img.shields.io/badge/sentence--transformers-2.7-orange)
-![FAISS](https://img.shields.io/badge/FAISS-1.8-red)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.128-green)
+![sentence-transformers](https://img.shields.io/badge/sentence--transformers-5.1-orange)
+![FAISS](https://img.shields.io/badge/FAISS-1.13-red)
 
 ---
 
