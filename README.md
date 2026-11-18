@@ -1,7 +1,6 @@
 # 👗 Fashion RecoSys
 
-> Sistema de recomendação de moda com busca semântica usando embeddings e FAISS  
-> Projeto de portfólio 
+> End-to-end semantic search and recommendation microservice powered by dense embeddings, FAISS vector indexing, and FastAPI.
 
 ![Python](https://img.shields.io/badge/Python-3.9+-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.128-green)
@@ -12,150 +11,161 @@
 
 ## Screenshots
 
-![Busca](https://raw.githubusercontent.com/kellyleticia/recsys-fashion/main/docs/busca.png)
-![Salvos](https://raw.githubusercontent.com/kellyleticia/recsys-fashion/main/docs/salvos.png)
+![Search UI](https://raw.githubusercontent.com/kellyleticia/recsys-fashion/main/docs/busca.png)
+![Saved Items UI](https://raw.githubusercontent.com/kellyleticia/recsys-fashion/main/docs/salvos.png)
 
-## O que o projeto faz
+## Overview
 
-O usuário descreve em linguagem natural o que procura. O sistema transforma essa descrição em um vetor semântico (embedding de 384 dimensões), compara com os vetores de **44.417 produtos** usando similaridade de cosseno via FAISS, e retorna os mais relevantes com fotos reais.
+Users query the catalog using natural language. The service encodes the query into a **384-dimensional dense vector**, performs cosine similarity search across **44,417 fashion products** via FAISS in under **5ms**, and returns ranked recommendations with product imagery.
 
-Os itens salvos ficam persistidos num banco SQLite associados a um `user_id` — os favoritos continuam disponíveis ao recarregar a página ou voltar depois.
+User favorites and search history are persisted in SQLite by `user_id`, maintaining state across sessions.
 
 ---
 
-## Arquitetura
+## Architecture
 
-```
-query (texto livre)
+```text
+query (natural language)
         │
         ▼
   encode()  ──  sentence-transformers (all-MiniLM-L6-v2)
-        │               384 dimensões
+        │               384-dim dense vector
         ▼
   FAISS index  ──  IndexFlatIP (cosine similarity)
-        │               44.417 vetores indexados
+        │               44,417 indexed vectors
         ▼
-  top-K produtos rankeados por score
+  top-K products ranked by similarity score
         │
         ▼
-  FastAPI  ──  JSON response com links das fotos
+  FastAPI  ──  JSON response + image URLs
         │
         ▼
-  Frontend HTML/JS  ──  grid com imagens reais + salvos no SQLite
+  Frontend (HTML/JS)  ──  product grid + SQLite persistence
 ```
 
 ---
 
-## Stack
+## Tech Stack
 
-| Camada | Tecnologia | Motivo |
-|--------|-----------|--------|
-| Embeddings | sentence-transformers `all-MiniLM-L6-v2` | 80MB, 384d, roda na CPU, ~11s para 44k itens |
-| Busca vetorial | FAISS `IndexFlatIP` | busca exata, ideal para < 1M itens |
-| API | FastAPI + Uvicorn | async nativo, docs automáticas, padrão ML serving |
-| Banco de dados | SQLite | zero config, persistência real entre sessões |
-| Frontend | HTML/CSS/JS puro | sem framework, fácil de auditar |
+| Layer | Technology | Rationale |
+|-------|-----------|-----------|
+| **Embeddings** | `sentence-transformers` (`all-MiniLM-L6-v2`) | Lightweight (80MB), 384d output, fast CPU inference (~11s to encode 44k items) |
+| **Vector Search** | FAISS (`IndexFlatIP`) | Exact inner-product search with sub-5ms query latency for catalogs under 1M items |
+| **API Serving** | FastAPI + Uvicorn | Native async support, automatic OpenAPI docs, Pydantic validation |
+| **Persistence** | SQLite | Zero-overhead relational storage for user favorites and query logs |
+| **Frontend** | Vanilla HTML/CSS/JS | Dependency-free UI for direct inspection and low overhead |
 
 ---
 
-## Dataset
+## Dataset & Feature Engineering
 
-**Fashion Product Images Dataset** — Kaggle  
-44.417 produtos de moda com metadados e imagens hospedadas online.
+Built on the **Fashion Product Images Dataset** (Kaggle), containing **44,417 products** with structured metadata and hosted image URLs.
 
-| Coluna | Descrição |
-|--------|-----------|
-| `id` | ID único do produto |
-| `productDisplayName` | Nome completo com marca |
-| `gender` | Men, Women, Boys, Girls, Unisex |
-| `masterCategory` | Apparel, Accessories, Footwear... |
-| `articleType` | Shirts, Jeans, Watches... |
-| `baseColour` | Cor principal |
-| `season` | Summer, Fall, Winter, Spring |
-| `usage` | Casual, Sports, Formal, Ethnic |
+| Column | Description |
+|--------|-------------|
+| `id` | Unique product identifier |
+| `productDisplayName` | Full product title including brand |
+| `gender` | `Men`, `Women`, `Boys`, `Girls`, `Unisex` |
+| `masterCategory` | `Apparel`, `Accessories`, `Footwear`, etc. |
+| `articleType` | `Shirts`, `Jeans`, `Watches`, etc. |
+| `baseColour` | Primary product color |
+| `season` | `Summer`, `Fall`, `Winter`, `Spring` |
+| `usage` | `Casual`, `Sports`, `Formal`, `Ethnic` |
 
-O campo `texto_embedding` concatena todas as colunas em uma frase rica:
+To improve semantic recall beyond title-only matching, all metadata attributes are serialized into a single rich text representation (`texto_embedding`) prior to encoding:
 
-```
+```text
 "Turtle Check Men Navy Blue Shirt Shirts Topwear Men Navy Blue Fall Casual"
 ```
 
-Isso dá embeddings mais precisos do que indexar só o título.
-
 ---
 
-## Como rodar localmente
+## Running Locally
 
-### 1. Clone e sincronize as dependências
-
+### 1. Clone the repository and install dependencies
 ```bash
-git clone https://github.com/kellyleticia/recsys-fashion
+git clone [https://github.com/kellyleticia/recsys-fashion](https://github.com/kellyleticia/recsys-fashion)
 cd recsys-fashion
 uv sync
 ```
 
-### 2. Dataset
-`styles.csv` e `images.csv` já estão na pasta `data/` do repositório.
+### 2. Verify raw dataset
+`styles.csv` and `images.csv` are included under `data/`.
 
-### 3. Prepare os dados
+### 3. Build data artifacts and FAISS index
 ```bash
-python preparar_dados.py      # limpa os CSVs → data/produtos.json
-python gerar_embeddings.py    # gera vetores  → data/embeddings.npy
-python construir_indice.py    # indexa FAISS  → data/index.faiss
+python preparar_dados.py      # cleans raw CSVs → data/produtos.json
+python gerar_embeddings.py    # generates vectors → data/embeddings.npy
+python construir_indice.py    # builds FAISS index → data/index.faiss
 ```
 
-### 4. Rode a API
+### 4. Start the API server
 ```bash
 uvicorn api.main:app --reload
 ```
 
-### 5. Abra o frontend
-Abra `frontend/index.html` no navegador.
+### 5. Launch the client
+Open `frontend/index.html` in your browser (or inspect interactive docs at `http://localhost:8000/docs`).
 
 ---
 
-## Endpoints
+## API Endpoints
 
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| `GET` | `/` | Status e total de produtos |
-| `POST` | `/recomendar` | Recomendação por query em linguagem natural |
-| `GET` | `/salvos/{user_id}` | Produtos salvos do usuário |
-| `POST` | `/salvos` | Salva ou remove um produto (toggle) |
-| `GET` | `/historico/{user_id}` | Histórico de buscas |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/` | Health check and total indexed products |
+| `POST` | `/recomendar` | Semantic product retrieval from natural language query |
+| `GET` | `/salvos/{user_id}` | Retrieve saved items for a user |
+| `POST` | `/salvos` | Toggle save/remove state for a product |
+| `GET` | `/historico/{user_id}` | Retrieve user search history |
 
-### Exemplo
+### Request Example
 ```bash
 curl -X POST http://localhost:8000/recomendar \
   -H "Content-Type: application/json" \
   -d '{"query": "casual blue shirt for men", "top_k": 6}'
 ```
 
+### Response Example
+```json
+{
+  "query": "casual blue shirt for men",
+  "resultados": [
+    {
+      "id": 15970,
+      "productDisplayName": "Turtle Check Men Navy Blue Shirt",
+      "baseColour": "Navy Blue",
+      "articleType": "Shirts",
+      "score": 0.742,
+      "imagem": "[http://assets.myntassets.com/](http://assets.myntassets.com/)..."
+    }
+  ]
+}
+```
+
 ---
 
-## Estrutura do projeto
+## Project Structure
 
-```
+```text
 recsys-fashion/
 ├── api/
 │   ├── __init__.py
-│   ├── main.py           ← endpoints FastAPI
-│   └── database.py       ← SQLite: salvos e histórico
+│   ├── main.py           # FastAPI routes and inference pipeline
+│   └── database.py       # SQLite persistence for favorites and history
 ├── data/
-│   ├── styles.csv        ← dataset original
-│   ├── images.csv        ← URLs das imagens
-│   ├── produtos.json     ← dados processados
-│   ├── embeddings.npy    ← vetores 44417 × 384 (gerado localmente)
-│   └── index.faiss       ← índice de busca vetorial (gerado localmente)
+│   ├── styles.csv        # Raw product metadata
+│   ├── images.csv        # Product image URLs
+│   ├── produtos.json     # Processed catalog (generated locally)
+│   ├── embeddings.npy    # 44,417 × 384 float32 matrix (generated locally)
+│   └── index.faiss       # Vector search index (generated locally)
 ├── docs/
-│   ├── busca.png         ← screenshot da busca
-│   └── salvos.png        ← screenshot dos salvos
+│   ├── busca.png         # Search interface screenshot
+│   └── salvos.png        # Saved items screenshot
 ├── frontend/
-│   └── index.html        ← UI completa
+│   └── index.html        # Client interface
 ├── notebooks/
-│   └── analise.ipynb     ← EDA e visualizações
-├── .gitignore
-├── .python-version
+│   └── analise.ipynb     # Exploratory data analysis
 ├── construir_indice.py
 ├── gerar_embeddings.py
 ├── preparar_dados.py
@@ -166,16 +176,9 @@ recsys-fashion/
 
 ---
 
-## Decisões técnicas
+## Engineering Trade-offs
 
-**Por que sentence-transformers em vez de TF-IDF?**  
-TF-IDF conta palavras. Se o usuário busca "navy top" e o produto se chama "Shirts Topwear Men Blue", TF-IDF não conecta. Embeddings entendem significado — "top" e "Topwear" vivem próximos no espaço vetorial.
-
-**Por que FAISS em vez de busca linear?**  
-Busca linear em 44k vetores de 384 dimensões seria ~17M operações por query. FAISS retorna os vizinhos em < 5ms.
-
-**Por que IndexFlatIP?**  
-Faz busca exata. Para 44k itens é rápido o suficiente. Para milhões de itens, a troca seria para `IndexIVFFlat` ou `IndexHNSWFlat` com pequena perda de precisão.
-
-**Por que SQLite?**  
-Zero configuração para portfólio. Em produção seria PostgreSQL — o código da API não mudaria, só a connection string.
+* **Dense Embeddings vs. Lexical Search (TF-IDF):** Lexical matching fails on vocabulary mismatches (e.g., querying `"navy top"` when the catalog entry uses `"Shirts Topwear Men Blue"`). Dense embeddings capture semantic proximity between `"top"` and `"Topwear"` in vector space.
+* **FAISS vs. Brute-Force NumPy Scan:** Linear scan across 44k 384-dimensional vectors requires ~17M floating-point operations per query. FAISS reduces retrieval latency to **< 5ms**.
+* **Exact Search (`IndexFlatIP`) vs. ANN Scaling:** `IndexFlatIP` guarantees 100% recall with negligible latency at 44k items. Scaling to multi-million-item production catalogs would require migrating to `IndexHNSWFlat` or `IndexIVFFlat` to trade a small fraction of recall for sub-linear search time.
+* **SQLite vs. Production Vector/Relational Stores:** SQLite keeps local setup self-contained. In a production environment with concurrent writes and hybrid metadata filtering, the persistence and retrieval layers would migrate to **PostgreSQL with `pgvector`**, preserving the same FastAPI service contract.
